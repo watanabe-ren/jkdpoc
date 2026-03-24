@@ -42,6 +42,10 @@ extends Node
 ## DwellArea のデフォルト必要滞在時間（秒）
 @export var dwell_required_time: float = 3.0
 
+# ★ DwellAreaのシーン（3Dオブジェクト）をプログラム内で生成できるようにロードしておく
+# ※ "res://scenes/world/DwellArea.tscn" の部分は、ご自身のプロジェクトの実際のパスに合わせて書き換えてください！
+@export var dwell_area_scene: PackedScene = preload("res://scenes/world/DwellArea.tscn")
+
 # ---------------------------------------------------------------------------
 # セマンティックラベル → form_id 変換テーブル
 # ---------------------------------------------------------------------------
@@ -427,6 +431,7 @@ func _create_dwell_area(anchor: PlacementAnchor) -> void:
 		return
 
 	var dwell: DwellArea = _dwell_area_scene.instantiate()
+	dwell.form_id = anchor.form_id
 	dwell.name              = "DwellArea_" + anchor.anchor_id.substr(0, 8)
 	dwell.area_id           = "dwell_" + anchor.anchor_id
 	dwell.linked_anchor_id  = anchor.anchor_id
@@ -501,3 +506,4 @@ func register_anchor_from_node(anchor: PlacementAnchor, _entity: Object) -> void
 
 	if auto_create_dwell_areas and anchor.form_id != "":
 		_create_dwell_area(anchor)
+		

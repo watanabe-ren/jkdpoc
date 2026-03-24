@@ -26,7 +26,8 @@ extends Node3D
 # ---------------------------------------------------------------------------
 # 内部ノード参照
 # ---------------------------------------------------------------------------
-
+## 自分が配置されている家具の名前（DESKなど）
+@export var form_id: String = ""
 @onready var _detection_area: Area3D          = $DetectionArea
 @onready var _collision_shape: CollisionShape3D = $DetectionArea/CollisionShape3D
 @onready var _dwell_timer: Timer              = $DwellTimer
@@ -41,7 +42,7 @@ var _is_cooling_down: bool = false
 var _cooldown_elapsed: float = 0.0
 
 ## EventBus Autoload への参照（_ready で解決）
-var _event_bus: Node = null
+#var _event_bus: Node = null
 
 # ---------------------------------------------------------------------------
 # シグナル
@@ -62,7 +63,7 @@ signal user_exited(area: DwellArea)
 
 func _ready() -> void:
 	# EventBus Autoload への参照を解決
-	_event_bus = get_node_or_null("/root/EventBus")
+	#_event_bus = get_node_or_null("/root/EventBus")
 
 	# DetectionArea のシグナルを接続
 	_detection_area.body_entered.connect(_on_body_entered)
@@ -95,6 +96,20 @@ func _process(delta: float) -> void:
 		if _cooldown_elapsed >= cooldown_time:
 			_is_cooling_down   = false
 			_cooldown_elapsed  = 0.0
+			
+	#if _is_user_inside and not _is_cooling_down:
+		#_elapsed_time += delta
+#
+	#if _is_cooling_down:
+		#_cooldown_elapsed += delta
+		#if _cooldown_elapsed >= cooldown_time:
+			## クールダウン終了！
+			#_is_cooling_down   = false
+			#_cooldown_elapsed  = 0.0
+			#
+			## ★ クールダウン明けにユーザーがまだ居座っていたら、次の計測を自動スタート！
+			#if _is_user_inside:
+				#_dwell_timer.start()
 
 # ---------------------------------------------------------------------------
 # 公開 API
@@ -124,8 +139,18 @@ func _on_body_entered(body: Node3D) -> void:
 	_elapsed_time   = 0.0
 	_dwell_timer.wait_time = required_dwell_time
 	_dwell_timer.start()
-
+#
 	user_entered.emit(self)
+	#if not body.is_in_group("player_body"):
+		#return
+	#
+	## ★ クールダウン中であっても、「ユーザーが中にいる」という事実は必ず記録する！
+	#_is_user_inside = true
+	#_elapsed_time   = 0.0
+	#
+	## クールダウン中でなければ即座にタイマー開始
+	#if not _is_cooling_down:
+		#_dwell_timer.start()
 
 
 func _on_body_exited(body: Node3D) -> void:
@@ -145,10 +170,10 @@ func _on_dwell_timer_timeout() -> void:
 
 	# 滞在時間達成 → イベントを発火
 	dwell_triggered.emit(self)
-	if _event_bus:
-		# BehaviorTrigger.ON_DWELL = 3（BehaviorTrigger.gd の Value enum 順に対応）
-		_event_bus.raw_dwell_triggered.emit(area_id, required_dwell_time)
-		_event_bus.behavior_triggered.emit("", 3, linked_anchor_id)
+	#if _event_bus:
+		## BehaviorTrigger.ON_DWELL = 3（BehaviorTrigger.gd の Value enum 順に対応）
+		#_event_bus.raw_dwell_triggered.emit(area_id, required_dwell_time)
+		#_event_bus.behavior_triggered.emit("", 3, linked_anchor_id)
 
 	# クールダウン開始
 	_is_cooling_down  = true
