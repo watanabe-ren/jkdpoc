@@ -105,6 +105,19 @@ func _ready() -> void:
 	add_child(_stay_timer)
 
 	print("DataPet: 起動。SceneMapper の設定を待機します。")
+	
+	# ---------------------------------------------------------
+	# [イベントの購読 (Subscribe)]
+	# グローバルなイベント管理（EventBus）から通知を受け取るための設定。
+	# ---------------------------------------------------------
+	var event_bus = get_node_or_null("/root/EventBus")
+	if event_bus and event_bus.has_signal("behavior_triggered"):
+		# EventBusが「behavior_triggered」というシグナル（割り込み）を発行したら、
+		# 自身の「_on_behavior_triggered」関数を実行するように結線（関数ポインタを登録）する
+		event_bus.behavior_triggered.connect(_on_behavior_triggered)
+		print("DataPet: EventBusの監視を開始しました")
+	else:
+		push_warning("DataPet: EventBusが見つからないか、シグナルがありません")
 
 func _process(delta: float) -> void:
 	match _state:
@@ -339,4 +352,47 @@ func get_state() -> PetState:
 func _set_state(new_state: PetState) -> void:
 	_state = new_state
 	print("DataPet: State → %s" % PetState.keys()[new_state])
+	
+# ---------------------------------------------------------------------------
+# イベント受信 (EventBus から呼ばれるコールバック関数)
+# ---------------------------------------------------------------------------
+## 【機能】システム全体で何らかのアクション（タッチ、音声など）が起きた時に呼ばれる
+## 引数 target_pet_id: どのペットに向けたイベントか（将来の複数ペット対応用）
+## 引数 trigger: 何が起きたか（2 = タッチされた、3 = 滞在された 等の定義値）
+## 引数 source_id: どこで起きたか（触られた家具の anchor_id など）
+func _on_behavior_triggered(target_pet_id: String, trigger: int, source_id: String) -> void:
+	
+	# ---------------------------------------------------------
+	# [パターンA: タッチ検知 (ON_TOUCH = 2)]
+	# ---------------------------------------------------------
+	if trigger == 2:
+		# ★ ここで C4 ログを出力！
+		DK.print_fixed("[C4] 成功: DataPetがタッチイベントを受信！")
+		# もし現在、何かの家具に「憑依中(POSSESSED)」ならリアクションする
+		if _state == PetState.POSSESSED and _current_form != null:
+			
+			# 自分が憑依している家具が触られたのかを確認する（一応の安全確認）
+			if _target_anchor and _target_anchor.anchor_id == source_id:
+				DK.print_fixed("DataPet: 憑依中の家具が触られた！")
+	
+	# ---------------------------------------------------------
+	# [パターンB: 滞在検知 (ON_DWELL = 3)] ★ここを追加！
+	# ---------------------------------------------------------
+	elif trigger == 3:
+		DK.print_fixed("[C4-Dwell] 成功: DataPetが滞在イベントを受信！")
+		
+		if _state == PetState.POSSESSED and _current_form != null:
+			if _target_anchor and _target_anchor.anchor_id == source_id:
+				DK.print_fixed("DataPet: ユーザーがそばで見守ってくれている！(喜ぶ)")
+				
+				# 【リアクション】嬉しくて横にモチッと潰れてプルプルする
+				var tween = create_tween()
+				var orig_scale = _current_form.scale
+				
+				# 横に広がり、縦に潰れる（モチッとする）
+				tween.tween_property(_current_form, "scale", orig_scale * Vector3(1.3, 0.7, 1.3), 0.15)\
+					.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+				# バウンドしながら元の形に戻る
+				tween.tween_property(_current_form, "scale", orig_scale, 0.4)\
+					.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	
